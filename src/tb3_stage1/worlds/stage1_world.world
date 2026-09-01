@@ -1,0 +1,198 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="stage1_world">
+
+    <!-- 光源与地面：Gazebo 自带模型 -->
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+
+    <!-- 物理引擎参数 -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- 关阴影，弱显卡上能明显提速 -->
+    <scene>
+      <ambient>0.6 0.6 0.6 1</ambient>
+      <shadows>false</shadows>
+    </scene>
+
+    <!-- ================= 墙体 ================= -->
+    <!-- 全部墙放在一个 model 里：静态几何体不需要拆分 -->
+    <model name="arena_walls">
+      <static>true</static>
+      <link name="walls">
+
+        <!-- 北墙 y=+3 -->
+        <collision name="north_col">
+          <pose>0 3 0.5 0 0 0</pose>
+          <geometry><box><size>8.15 0.15 1.0</size></box></geometry>
+        </collision>
+        <visual name="north_vis">
+          <pose>0 3 0.5 0 0 0</pose>
+          <geometry><box><size>8.15 0.15 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+
+        <!-- 南墙 y=-3 -->
+        <collision name="south_col">
+          <pose>0 -3 0.5 0 0 0</pose>
+          <geometry><box><size>8.15 0.15 1.0</size></box></geometry>
+        </collision>
+        <visual name="south_vis">
+          <pose>0 -3 0.5 0 0 0</pose>
+          <geometry><box><size>8.15 0.15 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+
+        <!-- 东墙 x=+4 -->
+        <collision name="east_col">
+          <pose>4 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 6.0 1.0</size></box></geometry>
+        </collision>
+        <visual name="east_vis">
+          <pose>4 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 6.0 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+
+        <!-- 西墙 x=-4 -->
+        <collision name="west_col">
+          <pose>-4 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 6.0 1.0</size></box></geometry>
+        </collision>
+        <visual name="west_vis">
+          <pose>-4 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 6.0 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+
+        <!-- 隔墙下段：y 从 -3 到 +0.6，长 3.6，中心 y=-1.2 -->
+        <collision name="divider_lower_col">
+          <pose>0 -1.2 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 3.6 1.0</size></box></geometry>
+        </collision>
+        <visual name="divider_lower_vis">
+          <pose>0 -1.2 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 3.6 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Wood</name>
+          </script></material>
+        </visual>
+
+        <!-- 隔墙上段：y 从 +1.4 到 +3，长 1.6，中心 y=+2.2 -->
+        <!-- 于是门洞在 y ∈ [0.6, 1.4]，宽 0.8 m -->
+        <collision name="divider_upper_col">
+          <pose>0 2.2 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 1.6 1.0</size></box></geometry>
+        </collision>
+        <visual name="divider_upper_vis">
+          <pose>0 2.2 0.5 0 0 0</pose>
+          <geometry><box><size>0.15 1.6 1.0</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Wood</name>
+          </script></material>
+        </visual>
+
+      </link>
+    </model>
+
+    <!-- ================= 障碍物 ================= -->
+
+    <!-- 大立方体 0.6 m，房间 A -->
+    <model name="obstacle_box_large">
+      <static>true</static>
+      <pose>-2.5 1.5 0.3 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.6 0.6 0.6</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.6 0.6 0.6</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Red</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 高圆柱 r=0.25 h=1.0，房间 A -->
+    <model name="obstacle_cylinder_tall">
+      <static>true</static>
+      <pose>-1.6 -1.6 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><cylinder><radius>0.25</radius><length>1.0</length></cylinder></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><cylinder><radius>0.25</radius><length>1.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Blue</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 小立方体 0.35 m，房间 B -->
+    <model name="obstacle_box_small">
+      <static>true</static>
+      <pose>2.0 -1.5 0.175 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.35 0.35 0.35</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.35 0.35 0.35</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Green</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 矮圆柱 r=0.18 h=0.6，房间 B -->
+    <model name="obstacle_cylinder_small">
+      <static>true</static>
+      <pose>2.6 1.6 0.3 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><cylinder><radius>0.18</radius><length>0.6</length></cylinder></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><cylinder><radius>0.18</radius><length>0.6</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Yellow</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 相机初始视角 -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>0 -12 10 0 0.7 1.5708</pose>
+      </camera>
+    </gui>
+
+  </world>
+</sdf>
