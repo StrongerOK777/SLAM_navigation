@@ -1,0 +1,30 @@
+# 目标点序列。yaw 单位是弧度。
+frame_id: "map"
+goal_timeout_sec: 180.0       # 单个目标点的超时时间
+settle_time_sec: 1.0          # 到达后停顿多久再发下一个
+
+waypoints:
+  - name: "房间A东北角"
+    x: -1.2
+    y: 2.2
+    yaw: 0.0
+
+  - name: "门洞"
+    x: 0.0
+    y: 1.0
+    yaw: 0.0
+
+  - name: "房间B中心"
+    x: 2.5
+    y: 0.5
+    yaw: -1.5708
+
+  - name: "房间B东南角"
+    x: 3.2
+    y: -2.0
+    yaw: 3.1416
+
+  - name: "返回起点"
+    x: -3.0
+    y: -2.0
+    yaw: 0.0
