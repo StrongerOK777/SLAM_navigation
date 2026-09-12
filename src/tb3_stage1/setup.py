@@ -20,6 +20,12 @@ setup(
         (os.path.join('share', package_name, 'maps'),
             glob('maps/*.pgm') + glob('maps/*.yaml')),
         (os.path.join('share', package_name, 'rviz'),   glob('rviz/*.rviz')),
+        # 下面是我自己的TB3模型的增加的
+        (os.path.join('share', package_name, 'urdf'), glob('urdf/*.urdf')),
+        (os.path.join('share', package_name, 'models', 'turtlebot3_burger_rgbd'),
+            glob('models/turtlebot3_burger_rgbd/*')),
+            
+            
     ],
     install_requires=['setuptools'],
     zip_safe=True,
