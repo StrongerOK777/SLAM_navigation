@@ -136,7 +136,7 @@ Gazebo 会把它的时间发布到 `/clock` 话题上。ROS 2 节点有一个参
 TF 系统会认为"这个变换是 1800 秒之前的，太旧了，不可信"，直接拒绝查询。你会看到这类报错：
 
 ```
-Lookup would require extrapolation into the past
+Lookup would require extrapolation into the ckckpast
 Could not transform from [odom] to [base_footprint]
 Message Filter dropping message: frame 'base_scan' at time ... for reason 'discarding message because the queue is full'
 ```
@@ -340,7 +340,7 @@ sudo find / -name 'libgazebo_ros_diff_drive.so' 2>/dev/null
 ## 1.3 安装 TurtleBot3（apt 路径）
 
 ```bash
-# TurtleBot3 核心（metapackage，含 description / navigation2 / teleop 等）
+# TurtleBot3 核心（metakkpackage，含 description / navigation2 / teleop 等）
 sudo apt install ros-humble-turtlebot3 ros-humble-turtlebot3-msgs
 
 # Gazebo 仿真包（含 model.sdf、worlds、launch）
@@ -1134,7 +1134,8 @@ cat setup.py
 
 ```
 tb3_stage1/
-├── package.xml          ← 已生成，内容是模板
+├── 
+package.xml          ← 已生成，内容是模板
 ├── setup.py             ← 已生成，内容是模板
 ├── setup.cfg            ← 已生成（告诉 colcon 可执行文件装到哪）
 ├── resource/tb3_stage1  ← 已生成（空文件，ament 索引的标记）
@@ -1152,7 +1153,8 @@ tb3_stage1/
 
 ```bash
 cd ~/tb3_nav_stage1/src/tb3_stage1
-cat package.xml
+cat 
+package.xml
 ```
 
 大致长这样（版本号、描述、维护者是命令填的默认值）：
@@ -1216,7 +1218,8 @@ tb3_nav_stage1/
 
 ```
 nav2_bringup/                    turtlebot3_navigation2/
-├── package.xml                  ├── package.xml
+├── 
+package.xml                  ├── package.xml
 ├── CMakeLists.txt               ├── CMakeLists.txt
 ├── launch/     (8 个)           ├── launch/    (1 个)
 ├── params/     (4 个)           ├── param/     (burger.yaml 等 4 个)
@@ -1519,7 +1522,9 @@ data_files=[ ... ]                          # 管其他一切，必须手写
 ~/tb3_nav_stage1/src/tb3_stage1/    ──►  ~/tb3_nav_stage1/install/tb3_stage1/
 ├── tb3_stage1/*.py                 ──►  ├── lib/python3.10/site-packages/tb3_stage1/
 │                                        ├── lib/tb3_stage1/waypoint_navigator  ← 可执行文件
-├── package.xml                     ──►  └── share/tb3_stage1/
+├── 
+
+package.xml                     ──►  └── share/tb3_stage1/
 ├── launch/*.launch.py              ──►      ├── package.xml
 ├── worlds/*.world                  ──►      ├── launch/
 ├── config/*.yaml                   ──►      ├── worlds/
@@ -4270,10 +4275,93 @@ ros2 run tb3_stage1 astar_planner_demo --ros-args \
 
 ```bash
 cd ~/tb3_nav_stage1/src
-ros2 pkg create nav2_astar_planner --build-type ament_cmake \
+ros2 pkg create nav2_astar_planner \
+  --build-type ament_cmake \
+  --license Apache-2.0 \
+  --description "基于栅格的 A* 全局路径规划器" \
+  --maintainer-name "你的名字" \
+  --maintainer-email "你的邮箱" \
   --dependencies rclcpp rclcpp_lifecycle nav2_core nav2_costmap_2d nav2_util \
                  nav_msgs geometry_msgs pluginlib tf2_ros builtin_interfaces
 ```
+
+### 这条命令的三个部分，性质完全不同
+
+```
+ros2 pkg create  nav2_astar_planner  --build-type ament_cmake  --dependencies A B C...
+                 └── 你自己起的名 ──┘ └── 二选一，不自由 ───┘ └── 由代码决定 ─┘
+```
+
+**① 包名：完全自由。** 叫 `my_planner` 也行。约束只有 ROS 2 命名规范：小写字母、数字、下划线，字母开头，不能有横杠或大写。
+
+用 `nav2_` 前缀是社区惯例（一眼看出是给 Nav2 用的），**不是要求**。但定下来后它会出现在 6 个地方，改名成本不低：
+
+| 出现的地方             | 内容                                                         |
+| ---------------------- | ------------------------------------------------------------ |
+| `CMakeLists.txt`     | `project(...)`、`${PROJECT_NAME}`                        |
+| `package.xml`        | `<name>`                                                   |
+| `planner_plugin.xml` | `<library path="...">`                                     |
+| 头文件宏               | `NAV2_ASTAR_PLANNER__ASTAR_PLANNER_HPP_`                   |
+| 目录                   | `include/nav2_astar_planner/`                              |
+| C++ 命名空间           | `namespace nav2_astar_planner`（可以不同，但强烈建议一致） |
+
+**② `--build-type`：由语言决定，没有选择余地。**
+
+| 值               | 生成什么           | 何时用                             |
+| ---------------- | ------------------ | ---------------------------------- |
+| `ament_python` | `setup.py`       | 纯 Python 包（你的`tb3_stage1`） |
+| `ament_cmake`  | `CMakeLists.txt` | **有 C++ 代码**              |
+
+这里**必须**是 `ament_cmake`：Nav2 用 `pluginlib` 在运行时 `dlopen` 加载 `.so`，Python 类没法被 C++ 进程加载。要编出 `.so` 就得走 CMake。
+
+**③ `--dependencies`：每一项都对应代码里的一个 `#include`，不是抄来的。**
+
+| 依赖                   | 对应 include                           | 用来干什么                                          | 能省吗                          |
+| ---------------------- | -------------------------------------- | --------------------------------------------------- | ------------------------------- |
+| `nav2_core`          | `nav2_core/global_planner.hpp`       | **基类**，你的类要继承它                      | ❌ 核心                         |
+| `pluginlib`          | `pluginlib/class_list_macros.hpp`    | `PLUGINLIB_EXPORT_CLASS` 宏，把类注册成可动态加载 | ❌ 核心                         |
+| `nav2_costmap_2d`    | `nav2_costmap_2d/costmap_2d_ros.hpp` | 读代价地图、`worldToMap()` 换算                   | ❌ 核心                         |
+| `rclcpp_lifecycle`   | 间接                                   | `configure()` 首参是 `LifecycleNode::WeakPtr`   | ❌ 接口签名要求                 |
+| `tf2_ros`            | `tf2_ros/buffer.h`                   | `configure()` 第三参是 `tf2_ros::Buffer`        | ❌ 接口签名要求                 |
+| `nav_msgs`           | `nav_msgs/msg/path.hpp`              | `createPlan()` 返回类型                           | ❌ 接口签名要求                 |
+| `geometry_msgs`      | `geometry_msgs/msg/pose_stamped.hpp` | `createPlan()` 参数类型                           | ❌ 接口签名要求                 |
+| `nav2_util`          | `nav2_util/node_utils.hpp`           | `declare_parameter_if_not_declared()`             | ⚠️ 可省，但要自己处理重复声明 |
+| `rclcpp`             | `rclcpp/rclcpp.hpp`                  | `RCLCPP_INFO` 日志宏                              | ⚠️ 会被传递带入，显式写更清楚 |
+| `builtin_interfaces` | 间接                                   | 时间戳类型                                          | ⚠️ 可省                       |
+
+**怎么自己推导这个列表** —— 沿用 2.3 节那套方法，先写代码再反推：
+
+```bash
+grep -rhoP '#include\s*[<"]\K[a-z_0-9]+(?=/)' src/ include/ | sort -u
+```
+
+输出的每一项基本对应一个依赖包。
+
+> **C++ 漏依赖比 Python 好办得多。** 漏了会在**编译期**明确报错：
+>
+> ```
+> fatal error: nav2_core/global_planner.hpp: No such file or directory
+> ```
+>
+> 而 Python 是**运行时**才 `ModuleNotFoundError`，而且往往只在别人的干净机器上才暴露。这是静态语言的好处之一 —— 所以这里你基本不可能漏。
+
+**`--dependencies` 本身没有魔法**，它只是帮你往两个文件各写几行：
+
+```xml
+<!-- package.xml -->
+<depend>nav2_core</depend>
+```
+
+```cmake
+# CMakeLists.txt
+find_package(nav2_core REQUIRED)
+```
+
+忘了加照样能事后手动补。这个参数纯粹省事，不是必须。
+
+> **⚠️ 别加 `--node-name`。** 那会生成一个带 `main()` 的可执行文件，而**插件是动态库不是程序** —— 它没有入口点，由 `planner_server` 进程加载。加了只会多出个用不上的文件。
+>
+> 这也是理解插件的好角度：**你写的不是一个"程序"，是一块"被别人的程序加载的代码"**。所以它没有 `main`，只有一组必须实现的虚函数。
 
 ### 头文件
 

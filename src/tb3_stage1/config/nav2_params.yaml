@@ -38,6 +38,13 @@ amcl:
     z_rand: 0.5
     z_short: 0.05
     scan_topic: scan
+    expected_planner_frequency: 20.0
+    use_sim_time: True
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_astar_planner::AStarPlanner"    # ← 换成你的
+      allow_diagonal: true
+      lethal_threshold: 253
 
 bt_navigator:
   ros__parameters:
