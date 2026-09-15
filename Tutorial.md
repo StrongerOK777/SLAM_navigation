@@ -1,3 +1,4 @@
+
 # 第一阶段考核任务：完整实施教程
 
 **目标环境**：Ubuntu 22.04 (x86_64) + ROS 2 Humble + Gazebo Classic 11 + TurtleBot3 (burger)
@@ -136,7 +137,7 @@ Gazebo 会把它的时间发布到 `/clock` 话题上。ROS 2 节点有一个参
 TF 系统会认为"这个变换是 1800 秒之前的，太旧了，不可信"，直接拒绝查询。你会看到这类报错：
 
 ```
-Lookup would require extrapolation into the ckckpast
+Lookup would require extrapolation into the past
 Could not transform from [odom] to [base_footprint]
 Message Filter dropping message: frame 'base_scan' at time ... for reason 'discarding message because the queue is full'
 ```
@@ -340,7 +341,7 @@ sudo find / -name 'libgazebo_ros_diff_drive.so' 2>/dev/null
 ## 1.3 安装 TurtleBot3（apt 路径）
 
 ```bash
-# TurtleBot3 核心（metakkpackage，含 description / navigation2 / teleop 等）
+# TurtleBot3 核心（metapackage，含 description / navigation2 / teleop 等）
 sudo apt install ros-humble-turtlebot3 ros-humble-turtlebot3-msgs
 
 # Gazebo 仿真包（含 model.sdf、worlds、launch）
@@ -1134,8 +1135,7 @@ cat setup.py
 
 ```
 tb3_stage1/
-├── 
-package.xml          ← 已生成，内容是模板
+├── package.xml          ← 已生成，内容是模板
 ├── setup.py             ← 已生成，内容是模板
 ├── setup.cfg            ← 已生成（告诉 colcon 可执行文件装到哪）
 ├── resource/tb3_stage1  ← 已生成（空文件，ament 索引的标记）
@@ -1153,8 +1153,7 @@ package.xml          ← 已生成，内容是模板
 
 ```bash
 cd ~/tb3_nav_stage1/src/tb3_stage1
-cat 
-package.xml
+cat package.xml
 ```
 
 大致长这样（版本号、描述、维护者是命令填的默认值）：
@@ -1218,8 +1217,7 @@ tb3_nav_stage1/
 
 ```
 nav2_bringup/                    turtlebot3_navigation2/
-├── 
-package.xml                  ├── package.xml
+├── package.xml                  ├── package.xml
 ├── CMakeLists.txt               ├── CMakeLists.txt
 ├── launch/     (8 个)           ├── launch/    (1 个)
 ├── params/     (4 个)           ├── param/     (burger.yaml 等 4 个)
@@ -1464,53 +1462,6 @@ setup(
 >
 > 千万别手动跑 `python3 setup.py install` —— 那会装进系统 Python 的 site-packages，**绕过 ament 索引**。结果是 `ros2 run` 找不到你的节点，但 `python3 -c "import tb3_stage1"` 又成功，制造出极难排查的矛盾状态。
 
-### 为什么需要"搬运"这一步
-
-先回答一个自然的疑问：**这不是因为我们的目录名是自定义的。** 你把 `worlds/` 改名叫 `chang_jing/` 也一样要写这一行。真正的原因有两层。
-
-**第一层：源码目录 ≠ 运行时目录。**
-
-ROS 2 运行时**只认 `install/`，从来不看源码目录**。自己验证一下 —— 看 apt 装的 `turtlebot3_gazebo`：
-
-```bash
-ls /opt/ros/humble/share/turtlebot3_gazebo/
-# launch/  models/  rviz/  urdf/  worlds/
-```
-
-**这台机器上根本没有它的源码**（源码在 GitHub 上），但你 launch 里那句 `get_package_share_directory('turtlebot3_gazebo')` 照样找得到它的 world 文件。
-
-这就是 `install/` 的意义：**它是交付物，源码不是。** 一个包该长什么样，由安装后的结构定义，与源码怎么组织无关。
-
-```
-apt 装的：  /opt/ros/humble/share/turtlebot3_gazebo/worlds/turtlebot3_world.world
-你构建的：  ~/tb3_nav_stage1/install/tb3_stage1/share/tb3_stage1/worlds/stage1_world.world
-                                      └──────── 同样的相对结构 ────────┘
-```
-
-回想 1.3 节纠结的"apt 装还是源码构建" —— 两条路对 launch 文件完全等价，正是因为它们产出的 `share/` 结构一模一样。运行时不知道也不关心你走了哪条路。
-
-**第二层：setuptools 只认得 Python 文件。**
-
-```python
-packages=find_packages(exclude=['test']),   # 管 .py 文件，自动的
-data_files=[ ... ]                          # 管其他一切，必须手写
-```
-
-`find_packages()` 自动发现并安装 `tb3_stage1/` 下的所有 Python 模块 —— 所以第 6 章的 `waypoint_navigator.py` **不需要**出现在 `data_files` 里。
-
-但 setuptools 是通用 Python 打包工具，它不知道 `.world`、`.yaml`、`.pgm`、`.rviz` 是干什么的。**你必须明确告诉它"这些也是交付物的一部分"。**
-
-> **这不是 Python 的怪癖。** C++ 包（`ament_cmake`）做同一件事，只是在 `CMakeLists.txt` 里写：
->
-> ```cmake
-> install(DIRECTORY launch worlds config
->         DESTINATION share/${PROJECT_NAME})
-> ```
->
-> 显式声明数据文件是打包的通例。
-
-**那能不能不搬，直接在 launch 里写死源码路径？** 技术上可以，在你的机器上能跑。但换台机器、改个目录名、你导师 clone 下来 —— 全废。`get_package_share_directory()` + `data_files` 换来的是**位置无关性**，这正是考核要点里"目录结构是否正确"的实质。
-
 ### 为什么要"搬运"：源码树 vs 安装树
 
 先回答一个更根本的问题：为什么这些文件不能待在原地被直接使用？
@@ -1522,9 +1473,7 @@ data_files=[ ... ]                          # 管其他一切，必须手写
 ~/tb3_nav_stage1/src/tb3_stage1/    ──►  ~/tb3_nav_stage1/install/tb3_stage1/
 ├── tb3_stage1/*.py                 ──►  ├── lib/python3.10/site-packages/tb3_stage1/
 │                                        ├── lib/tb3_stage1/waypoint_navigator  ← 可执行文件
-├── 
-
-package.xml                     ──►  └── share/tb3_stage1/
+├── package.xml                     ──►  └── share/tb3_stage1/
 ├── launch/*.launch.py              ──►      ├── package.xml
 ├── worlds/*.world                  ──►      ├── launch/
 ├── config/*.yaml                   ──►      ├── worlds/
@@ -1571,6 +1520,89 @@ find /opt/ros/humble -path "*turtlebot3_gazebo*" -name "*.cpp" | wc -l
 
 > **这和目录名叫什么无关。** 就算你老老实实叫 `launch/`，不写进 `data_files` 也一样装不进去；反过来叫 `changjing/` 只要声明了也能用。约定俗成的目录名是给人看的，不是给构建系统看的。
 
+### `entry_points`：从 .py 文件到 `ros2 run` 命令
+
+`data_files` 管数据文件，`entry_points` 管**可执行节点**。
+
+```python
+'color_detector = tb3_stage1.color_detector:main'
+ └── 命令名 ──┘   └─ 模块路径 ─┘ └─ 函数名
+```
+
+读作：**创建一个叫 `color_detector` 的可执行文件，它 import `tb3_stage1.color_detector` 模块并调用其中的 `main()`。**
+
+有了它才能跑：
+
+```bash
+ros2 run tb3_stage1 color_detector
+            └包名┘  └─ 命令名 ─┘
+```
+
+三个部分的自由度不同：
+
+| 部分     | 对应什么                             | 能自己起名吗            |
+| -------- | ------------------------------------ | ----------------------- |
+| 命令名   | `ros2 run tb3_stage1 <这里>`       | ✅ 随便起               |
+| 模块路径 | 文件`tb3_stage1/color_detector.py` | ❌ 必须和实际路径一致   |
+| 函数名   | 文件里的`def main(...)`            | ❌ 必须和实际函数名一致 |
+
+模块路径用**点号**、不带 `.py` 后缀 —— 那是 Python 的 import 语法：
+
+```
+文件系统：  src/tb3_stage1/tb3_stage1/color_detector.py
+Python：                  tb3_stage1  .  color_detector
+                          └ 包目录 ┘     └ 模块名 ┘
+```
+
+**⚠️ 注意两层同名目录**，`.py` 必须放内层：
+
+```
+src/tb3_stage1/              ← ROS 包目录（有 setup.py）
+├── setup.py
+└── tb3_stage1/              ← Python 模块目录（同名，不是笔误）
+    ├── __init__.py
+    └── color_detector.py    ← 放这里
+```
+
+**它实际生成了什么** —— build 之后自己看：
+
+```bash
+ls ~/tb3_nav_stage1/install/tb3_stage1/lib/tb3_stage1/
+cat ~/tb3_nav_stage1/install/tb3_stage1/lib/tb3_stage1/waypoint_navigator
+```
+
+是个几行的胶水脚本：`from tb3_stage1.waypoint_navigator import main; sys.exit(main())`。setuptools 自动生成 —— 这就是"入口点"的字面含义：程序从这里进入。
+
+它装在 `lib/tb3_stage1/` 而不是 `bin/`，是 `setup.cfg` 里那两行重定向的功劳。**`ros2 run` 只在 `lib/<包名>/` 下找可执行文件。**
+
+### 后面每加一个新节点，都走这个流程
+
+第 6、9、10、11 章各要加一个节点，流程完全一样：
+
+```bash
+cd ~/tb3_nav_stage1/src/tb3_stage1
+
+ls tb3_stage1/新节点.py                       # ① 文件在内层目录
+grep -n "^def main" tb3_stage1/新节点.py      # ② 有 main 函数
+# ③ 编辑 setup.py，往 console_scripts 列表加一行（注意行末逗号）
+python3 -m py_compile setup.py && echo OK    # ④ 语法检查
+
+cd ~/tb3_nav_stage1
+colcon build --symlink-install               # ⑤ 改了 setup.py 必须重新 build
+source install/setup.bash
+ls install/tb3_stage1/lib/tb3_stage1/        # ⑥ 关键验证：可执行文件生成了吗
+ros2 run tb3_stage1 新节点                    # ⑦ 跑
+```
+
+**第 ⑥ 步是分水岭**：看不到文件 = 第 ③ 步没生效，不必去 debug 节点代码。
+
+| 症状                                                      | 原因                                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `No executable found`                                   | 忘了重新 build；或`console_scripts` 那行拼错                                              |
+| `ModuleNotFoundError: No module named 'tb3_stage1.xxx'` | `.py` 放错层了（在外层而非内层目录）                                                      |
+| `cannot import name 'main'`                             | 文件里没有`def main()`，或拼成 `def Main()`                                             |
+| 改了代码不生效                                            | 改`.py` 内容有 `--symlink-install` 会立即生效；**改 `setup.py` 必须重新 build** |
+
 ### 这几行分别在干什么
 
 `data_files` 的每个元组就是**一条搬运指令**：`(目标目录, [要搬的源文件列表])`。
@@ -1609,7 +1641,7 @@ find /opt/ros/humble -path "*turtlebot3_gazebo*" -name "*.cpp" | wc -l
 
 刚加完时这五行全部匹配为空，**这是正常的**。空列表不报错，只是什么都不搬。
 
-### 为什么需要"搬运"这一步
+### 三个安装机制的分工
 
 **`setup.py` 里其实有三个互相独立的安装机制**，`data_files` 只是其中一个：
 
@@ -4700,6 +4732,36 @@ ament_export_dependencies(${dependencies})
   </export>
 ```
 
+### ⚠️ C++ 插件不需要 entry_points
+
+这一点容易和第 2.4 节混淆。**两者是互不相干的两套发现机制：**
+
+| 产物                             | 类型                       | 怎么被找到                                       | 需要 entry_points  |
+| -------------------------------- | -------------------------- | ------------------------------------------------ | ------------------ |
+| `waypoint_navigator` 等        | Python 节点                | `ros2 run` 去 `lib/tb3_stage1/` 找可执行文件 | ✅                 |
+| **`nav2_astar_planner`** | **C++ 插件 `.so`** | **`pluginlib` 通过 `dlopen` 加载**     | ❌**不需要** |
+
+关键区别在于**它是不是一个"程序"**：
+
+```
+Python 节点：  敲命令 → 操作系统启动新进程 → 从 main() 开始
+                                            └── entry_points 生成的胶水脚本
+
+C++ 插件：    planner_server 进程已在运行 → 读 YAML 看到你的类名
+              → pluginlib 查索引找到 .so → dlopen 加载进自己的地址空间
+              → 通过基类指针调用 createPlan()
+                                          └── 没有 main()，不是独立进程
+```
+
+**插件没有入口点，因为它不是被"启动"的，是被"加载"的。** 这也是前面提醒别加 `--node-name` 的原因。
+
+而且它们属于两个不同的包，各管各的：
+
+```
+src/tb3_stage1/          ament_python  → setup.py 的 entry_points
+src/nav2_astar_planner/  ament_cmake   → package.xml 的 <nav2_core plugin=.../>
+```
+
 ### 挂进导航栈
 
 改 `config/nav2_params.yaml`：
@@ -4733,13 +4795,28 @@ colcon build --symlink-install
 gzkill && ros2 launch tb3_stage1 navigation.launch.py
 ```
 
-**成功的标志**：启动日志里出现
+> **⚠️ "编译成功"不等于"真的被用上"。** 上面这些只证明库编出来了、XML 声明了。**还没证明 `planner_server` 真的加载并调用了它。**
+
+**运行时验证**（这才是真正的判据）：
+
+```bash
+# ① 确认 YAML 里换成你的插件了
+grep -A4 "^planner_server:" ~/tb3_nav_stage1/src/tb3_stage1/config/nav2_params.yaml
+#    plugin: 那行必须是 nav2_astar_planner::AStarPlanner
+
+# ② 启动，看加载日志
+gzkill
+ros2 launch tb3_stage1 navigation.launch.py 2>&1 | grep -i "astar\|planner_server"
+```
+
+**两行日志缺一不可：**
 
 ```
-[planner_server]: AStarPlanner [GridBased] 已配置：allow_diagonal=true, lethal_threshold=253
+[planner_server]: AStarPlanner [GridBased] 已配置：...     ← configure() 被调用了
+[planner_server]: A* 规划成功：xxx 个点                     ← createPlan() 被调用了
 ```
 
-然后用 "Nav2 Goal" 发目标，日志里应该有 `A* 规划成功：xxx 个点`。
+第一行来自 `configure()`，证明插件被加载；第二行在你发出 Nav2 Goal 后出现，证明它真的在规划。**前面所有验证都只说明"东西存在"，这两行才说明"东西在工作"。**
 
 ### 对比实验（报告素材）
 
@@ -4798,6 +4875,81 @@ gzkill && ros2 launch tb3_stage1 navigation.launch.py
 3. A 方案能让你把整条链路（图像订阅 → 处理 → 结果发布 → 可视化）打通，B 只是换掉中间那一步
 
 做完 A 之后如果想做 B，我在 10.5 给了路径。
+
+## 10.1b 这个节点在系统里的位置
+
+刚写完第 9 章的 C++ 插件，这个对比最能说明两种集成方式的区别：
+
+|                        | 第 9 章 A* 插件                                                                       | 本章检测节点                            |
+| ---------------------- | ------------------------------------------------------------------------------------- | --------------------------------------- |
+| 产物                   | `libnav2_astar_planner.so`                                                          | 可执行脚本                              |
+| **是独立进程吗** | **否** —— 活在 `planner_server` 进程里                                      | **是** —— 自己一个进程          |
+| 谁启动它               | `planner_server` 用 `dlopen` 加载                                                 | **你自己** `ros2 run` 或 launch |
+| 注册机制               | `PLUGINLIB_EXPORT_CLASS` + `planner_plugin.xml` + `package.xml` 的 `<export>` | `setup.py` 的 `entry_points`        |
+| 何时被用到             | **运行期**被 pluginlib 查找并加载                                               | **构建期**生成启动脚本            |
+| 谁调用你的函数         | Nav2 调`createPlan()`                                                               | 没人调 —— 你的`main()` 本身就是起点 |
+
+**插件是"被别人的程序加载的代码"，节点是"自己就是一个程序"。** 集成方式不同，注册机制自然不同。
+
+### entry_points 在时间轴上的位置
+
+它是**构建期**的东西，运行时早已退场：
+
+```
+构建期（colcon build）
+  ├─ 读 setup.py 的 entry_points
+  └─ 生成 install/tb3_stage1/lib/tb3_stage1/color_detector 胶水脚本
+     ← entry_points 的使命到此结束
+
+运行期（ros2 run）
+  ├─ ros2 在 lib/tb3_stage1/ 下找同名可执行文件
+  ├─ 执行它 → import 模块 → 调 main()
+  └─ rclpy.init() → 节点上线，开始订阅 /camera/image_raw
+```
+
+所以它回答的是"**`ros2 run` 怎么找到我的代码**"，不是"Nav2 怎么调用我的代码"。
+
+### 检测节点不在 Nav2 的数据流上
+
+```
+                   ┌─► /scan ──► SLAM / AMCL ──► Nav2 ──► /cmd_vel ──┐
+                   │                                                  │
+  Gazebo ──────────┤                                                  ├──► Gazebo
+                   │                                                  │
+                   └─► /camera/image_raw ──► color_detector           │
+                                                   │                  │
+                                                   ▼                  │
+                                        /detection/image（给人看）     │
+                                        /detection/markers（给 RViz）  │
+                                                                      │
+                             ↑ 这条支路的输出没有接回控制回路 ─────────┘
+```
+
+**Nav2 完全不知道它存在** —— `planner_server`、`controller_server` 没有任何一个订阅 `/detection/*`。检测结果目前只喂给人眼和 RViz。
+
+这符合任务书的要求：附加挑战 3 写的是"**部署**简单的目标检测算法，**展示结果**"，没要求接进控制回路。
+
+**启动顺序里它在哪：**
+
+```
+① colcon build              ← entry_points 在这里被消费掉
+② ros2 launch 世界           ← Gazebo 起来，相机开始发图
+③ ros2 launch nav2          ← 导航栈（和检测节点无关）
+④ ros2 run color_detector   ← 节点上线，开始订阅图像
+```
+
+**③ 和 ④ 互不依赖，顺序可对调，只做 ④ 不做 ③ 也能跑。** 检测只需要 `/camera/image_raw`，那来自第 ② 步。
+
+验证这一点：
+
+```bash
+gzkill
+ros2 launch tb3_stage1 rgbd_world.launch.py     # 不启动 Nav2
+ros2 run tb3_stage1 color_detector --ros-args -p use_sim_time:=true
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p use_sim_time:=true
+```
+
+检测照常工作。**这是"松耦合"的一个直接演示**，值得写进报告 —— 话题机制让感知模块可以独立开发、独立测试，不必等导航栈就绪。
 
 ## 10.2 关键概念：cv_bridge
 

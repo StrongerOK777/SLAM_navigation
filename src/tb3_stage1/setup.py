@@ -40,7 +40,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'waypoint_navigator = tb3_stage1.waypoint_navigator:main'
+            'waypoint_navigator = tb3_stage1.waypoint_navigator:main',
+            'color_detector = tb3_stage1.color_detector:main',
         ],
     },
 )
